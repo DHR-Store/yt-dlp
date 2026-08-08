@@ -1,13 +1,14 @@
 const axios = require('axios');
+const { HttpsProxyAgent } = require('https-proxy-agent');
+
+// ─── Read proxy key from environment ──────────────────────────
+const SCRAPER_API_KEY = process.env.SCRAPER_API_KEY || 'YOUR_SCRAPER_API_KEY';
 
 // ─── cnv.cx API constants ──────────────────────────────────────
 const CNV_API_URL = 'https://cnv.cx/v2/converter';
-
-// 🔑 Get the key from environment variable (set in Vercel)
-// If not set, fallback to a hardcoded one (but it might be outdated)
 const CNV_KEY = process.env.CNV_KEY || 'NDBjNGE4OWNmYzVkM2Q5OTgwNzE5MGVmMDc2ZjRjMTQ4OWM0NGNiMGU0Y2I5NTRkOWY1MTI3MHxNVGM0TlRVMk5Ua3dOalV5Tnc9PQ==';
 
-// 🌐 Headers that mimic a real Chrome browser on Windows
+// ─── Headers that mimic a real browser ─────────────────────────
 const CNV_HEADERS = {
   'key': CNV_KEY,
   'Origin': 'https://frame.y2meta-uk.com',
@@ -60,7 +61,7 @@ function extractVideoId(url) {
   return null;
 }
 
-// ─── Fetch download URL for a single format ────────────────────
+// ─── Fetch download URL using proxy ────────────────────────────
 async function getDownloadUrl(videoUrl, format, quality, audioBitrate) {
   const params = {
     link: videoUrl,
@@ -77,19 +78,23 @@ async function getDownloadUrl(videoUrl, format, quality, audioBitrate) {
     params.videoQuality = '360';
   }
 
+  // Build proxy agent if key is provided
+  let proxyAgent = null;
+  if (SCRAPER_API_KEY && SCRAPER_API_KEY !== 'YOUR_SCRAPER_API_KEY') {
+    const proxyUrl = `http://scraperapi:${SCRAPER_API_KEY}@proxy-server.scraperapi.com:8001`;
+    proxyAgent = new HttpsProxyAgent(proxyUrl);
+  }
+
   const response = await axios.post(
     CNV_API_URL,
     new URLSearchParams(params).toString(),
     {
       headers: CNV_HEADERS,
       timeout: 30000,
-      // ✅ Important: disable automatic decompression to match browser behavior
-      decompress: false,
+      httpsAgent: proxyAgent,   // Apply proxy if available
+      httpAgent: proxyAgent,
     }
   );
-
-  // The response might be gzipped; axios handles it automatically if we set decompress: true (default)
-  // But to be safe, we keep default.
 
   if (response.data && response.data.url) {
     return {
@@ -103,7 +108,6 @@ async function getDownloadUrl(videoUrl, format, quality, audioBitrate) {
 
 // ─── Main Vercel handler ──────────────────────────────────────
 module.exports = async (req, res) => {
-  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
