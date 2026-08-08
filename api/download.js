@@ -2,24 +2,32 @@ const axios = require('axios');
 
 // ─── cnv.cx API constants ──────────────────────────────────────
 const CNV_API_URL = 'https://cnv.cx/v2/converter';
-// Read key from environment variable (set in Vercel dashboard)
+
+// 🔑 Get the key from environment variable (set in Vercel)
+// If not set, fallback to a hardcoded one (but it might be outdated)
 const CNV_KEY = process.env.CNV_KEY || 'NDBjNGE4OWNmYzVkM2Q5OTgwNzE5MGVmMDc2ZjRjMTQ4OWM0NGNiMGU0Y2I5NTRkOWY1MTI3MHxNVGM0TlRVMk5Ua3dOalV5Tnc9PQ==';
 
+// 🌐 Headers that mimic a real Chrome browser on Windows
 const CNV_HEADERS = {
   'key': CNV_KEY,
   'Origin': 'https://frame.y2meta-uk.com',
+  'Referer': 'https://frame.y2meta-uk.com/',
   'Content-Type': 'application/x-www-form-urlencoded',
   'Accept': '*/*',
-  'Accept-Encoding': 'gzip, deflate, br, zstd',
-  'Accept-Language': 'en-GB,en-US;q=0.9,en;q=0.8,hi;q=0.7',
+  'Accept-Encoding': 'gzip, deflate, br',
+  'Accept-Language': 'en-US,en;q=0.9',
   'Cache-Control': 'no-cache',
   'Pragma': 'no-cache',
-  'Priority': 'u=1, i',
-  'Referer': 'https://frame.y2meta-uk.com/',
-  'User-Agent': 'Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Mobile Safari/537.36',
+  'Sec-Ch-Ua': '"Not=A?Brand";v="99", "Chromium";v="130", "Google Chrome";v="130"',
+  'Sec-Ch-Ua-Mobile': '?0',
+  'Sec-Ch-Ua-Platform': '"Windows"',
+  'Sec-Fetch-Dest': 'empty',
+  'Sec-Fetch-Mode': 'cors',
+  'Sec-Fetch-Site': 'same-site',
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
 };
 
-// ─── Quality presets ────────────────────────────────────────────
+// ─── Quality presets (unchanged) ──────────────────────────────
 const MP4_QUALITIES = [
   { label: '1080p MP4', format: 'mp4', quality: '1080' },
   { label: '720p MP4',  format: 'mp4', quality: '720'  },
@@ -75,8 +83,13 @@ async function getDownloadUrl(videoUrl, format, quality, audioBitrate) {
     {
       headers: CNV_HEADERS,
       timeout: 30000,
+      // ✅ Important: disable automatic decompression to match browser behavior
+      decompress: false,
     }
   );
+
+  // The response might be gzipped; axios handles it automatically if we set decompress: true (default)
+  // But to be safe, we keep default.
 
   if (response.data && response.data.url) {
     return {
