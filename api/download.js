@@ -1,14 +1,17 @@
 const axios = require('axios');
 const { HttpsProxyAgent } = require('https-proxy-agent');
 
-// ─── Read proxy key from environment ──────────────────────────
-const SCRAPER_API_KEY = process.env.SCRAPER_API_KEY || 'YOUR_SCRAPER_API_KEY';
-
 // ─── cnv.cx API constants ──────────────────────────────────────
 const CNV_API_URL = 'https://cnv.cx/v2/converter';
+
+// 🔑 Get the key from environment variable (set in Vercel)
 const CNV_KEY = process.env.CNV_KEY || 'NDBjNGE4OWNmYzVkM2Q5OTgwNzE5MGVmMDc2ZjRjMTQ4OWM0NGNiMGU0Y2I5NTRkOWY1MTI3MHxNVGM0TlRVMk5Ua3dOalV5Tnc9PQ==';
 
-// ─── Headers that mimic a real browser ─────────────────────────
+// 🌐 Proxy configuration (from environment variables)
+// Format: http://username:password@host:port
+const PROXY_URL = process.env.PROXY_URL || null;
+
+// 🌐 Headers that mimic a real Chrome browser
 const CNV_HEADERS = {
   'key': CNV_KEY,
   'Origin': 'https://frame.y2meta-uk.com',
@@ -28,7 +31,7 @@ const CNV_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
 };
 
-// ─── Quality presets (unchanged) ──────────────────────────────
+// ─── Quality presets ────────────────────────────────────────────
 const MP4_QUALITIES = [
   { label: '1080p MP4', format: 'mp4', quality: '1080' },
   { label: '720p MP4',  format: 'mp4', quality: '720'  },
@@ -61,7 +64,7 @@ function extractVideoId(url) {
   return null;
 }
 
-// ─── Fetch download URL using proxy ────────────────────────────
+// ─── Fetch download URL with proxy support ─────────────────────
 async function getDownloadUrl(videoUrl, format, quality, audioBitrate) {
   const params = {
     link: videoUrl,
@@ -78,11 +81,13 @@ async function getDownloadUrl(videoUrl, format, quality, audioBitrate) {
     params.videoQuality = '360';
   }
 
-  // Build proxy agent if key is provided
-  let proxyAgent = null;
-  if (SCRAPER_API_KEY && SCRAPER_API_KEY !== 'YOUR_SCRAPER_API_KEY') {
-    const proxyUrl = `http://scraperapi:${SCRAPER_API_KEY}@proxy-server.scraperapi.com:8001`;
-    proxyAgent = new HttpsProxyAgent(proxyUrl);
+  // Create proxy agent if PROXY_URL is provided
+  let agent = null;
+  if (PROXY_URL) {
+    agent = new HttpsProxyAgent(PROXY_URL);
+    console.log(`✅ Using proxy: ${PROXY_URL.split('@')[1] || 'configured'}`);
+  } else {
+    console.warn('⚠️ No proxy configured - may get 403 errors');
   }
 
   const response = await axios.post(
@@ -91,8 +96,8 @@ async function getDownloadUrl(videoUrl, format, quality, audioBitrate) {
     {
       headers: CNV_HEADERS,
       timeout: 30000,
-      httpsAgent: proxyAgent,   // Apply proxy if available
-      httpAgent: proxyAgent,
+      httpsAgent: agent,
+      httpAgent: agent,
     }
   );
 
